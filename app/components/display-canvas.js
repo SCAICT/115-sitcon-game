@@ -42,6 +42,7 @@ export default function DisplayCanvas() {
     drawings: [],
   });
   const animIdRef = useRef(null);
+  const logoRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -51,6 +52,13 @@ export default function DisplayCanvas() {
     let width = window.innerWidth;
     let height = window.innerHeight;
     let scale = 1;
+
+    // Load logo image
+    const logo = new Image();
+    logo.src = "/scaict.webp";
+    logo.onload = () => {
+      logoRef.current = logo;
+    };
 
     function resize() {
       width = window.innerWidth;
@@ -106,6 +114,47 @@ export default function DisplayCanvas() {
       grad.addColorStop(1, "hsl(0, 0%, 3%)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
+
+      // Draw faint grid lines
+      ctx.strokeStyle = "hsla(0, 0%, 100%, 0.02)";
+      ctx.lineWidth = 0.5;
+      const gridSize = 40;
+
+      ctx.beginPath();
+      for (let x = 0; x < width; x += gridSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+      }
+      for (let y = 0; y < height; y += gridSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+      ctx.stroke();
+
+      // Draw centered logo in background with reduced opacity
+      if (logoRef.current) {
+        const logo = logoRef.current;
+        const maxLogoWidth = width * 0.28; // Logo takes up 28% of canvas width (reduced from 40%)
+        const maxLogoHeight = height * 0.28; // Logo takes up 28% of canvas height (reduced from 40%)
+
+        // Calculate scaled dimensions while maintaining aspect ratio
+        const logoAspect = logo.width / logo.height;
+        let logoWidth = maxLogoWidth;
+        let logoHeight = logoWidth / logoAspect;
+
+        if (logoHeight > maxLogoHeight) {
+          logoHeight = maxLogoHeight;
+          logoWidth = logoHeight * logoAspect;
+        }
+
+        const logoX = (width - logoWidth) / 2;
+        const logoY = (height - logoHeight) / 2;
+
+        ctx.save();
+        ctx.globalAlpha = 0.15; // Semi-transparent so it stays in background
+        ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+        ctx.restore();
+      }
 
       // Render drawings from authoritative state
       const { drawings } = stateRef.current;

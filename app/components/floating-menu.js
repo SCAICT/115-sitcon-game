@@ -82,7 +82,7 @@ export default function FloatingMenu({ onSubmit }) {
 
       {/* Drawing Panel */}
       <div
-        className={`fixed z-40 bottom-0 right-0 w-full sm:w-[440px] transition-all duration-500 ease-out ${
+        className={`fixed z-40 bottom-0 left-1/2 -translate-x-1/2 w-full sm:w-[600px] md:w-[700px] transition-all duration-500 ease-out ${
           isOpen
             ? "translate-y-0 opacity-100"
             : "translate-y-full opacity-0 pointer-events-none"
@@ -93,10 +93,10 @@ export default function FloatingMenu({ onSubmit }) {
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div>
               <h2 className="text-foreground text-base font-semibold">
-                Draw Something
+                畫些什麼吧
               </h2>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Your art will float across the wall
+                您畫的東西會出現在大螢幕上！
               </p>
             </div>
             <button
@@ -134,7 +134,7 @@ export default function FloatingMenu({ onSubmit }) {
             {/* Color Picker */}
             <div>
               <label className="block text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wider">
-                Color
+                顏色
               </label>
               <div className="flex gap-2 flex-wrap">
                 {COLORS.map((color) => (
@@ -156,7 +156,7 @@ export default function FloatingMenu({ onSubmit }) {
             {/* Line Width */}
             <div>
               <label className="block text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wider">
-                {"Brush Size"}
+                {"筆觸大小"}
               </label>
               <div className="flex items-center gap-3">
                 <div
@@ -186,13 +186,13 @@ export default function FloatingMenu({ onSubmit }) {
                 onClick={handleClear}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
               >
-                Clear
+                清除全部
               </button>
               <button
                 onClick={handleSubmit}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[hsl(168,80%,50%)] text-[hsl(0,0%,4%)] hover:brightness-110 transition-all shadow-[0_0_16px_hsla(168,80%,50%,0.25)]"
               >
-                {showSuccess ? "Sent!" : "Submit Drawing"}
+                {showSuccess ? "已送出!" : "送出"}
               </button>
             </div>
           </div>
