@@ -117,7 +117,7 @@ export default function DisplayCanvas() {
 
       // Draw faint grid lines
       ctx.strokeStyle = "hsla(0, 0%, 100%, 0.02)";
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = 1.5;
       const gridSize = 40;
 
       ctx.beginPath();
