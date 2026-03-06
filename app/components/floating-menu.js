@@ -34,7 +34,10 @@ export default function FloatingMenu({ onSubmit }) {
       if (strokes.length === 0) return;
 
       try {
-        await onSubmit({ strokes });
+        await onSubmit({
+          strokes,
+          createdAt: new Date().toISOString(),
+        });
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 1200);
       } catch (e) {

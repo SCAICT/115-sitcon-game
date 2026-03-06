@@ -8,11 +8,16 @@ import path from "path";
 // Fixed virtual world size for consistent coordinates across devices
 const WORLD_WIDTH = 1920;
 const WORLD_HEIGHT = 1080;
+const EXPIRY_MS = 30 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 60 * 1000;
 
 // Singleton state
 let started = false;
 let drawings = [];
 let timer = null;
+let lastCleanupAt = 0;
+
+const DATA_PATH = path.join(process.cwd(), "data", "strokes.json");
 
 // Seeded RNG for deterministic initial placement per submission
 function mulberry32(seed) {
@@ -33,6 +38,7 @@ function makeDrawingFromSubmission(submission) {
   const pad = 80;
   return {
     id: submission.id,
+    createdAt: submission.createdAt,
     strokes: submission.strokes,
     x: seededBetween(rng, pad, WORLD_WIDTH - pad),
     y: seededBetween(rng, pad, WORLD_HEIGHT - pad),
@@ -45,13 +51,63 @@ function makeDrawingFromSubmission(submission) {
   };
 }
 
+function getSubmissionCreatedAtMs(submission) {
+  if (submission && typeof submission.createdAt === "string") {
+    const parsed = Date.parse(submission.createdAt);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (submission && typeof submission.id === "number") {
+    return submission.id;
+  }
+  return 0;
+}
+
+function isExpiredByMs(createdAtMs, nowMs = Date.now()) {
+  return nowMs - createdAtMs > EXPIRY_MS;
+}
+
+function isSubmissionExpired(submission, nowMs = Date.now()) {
+  return isExpiredByMs(getSubmissionCreatedAtMs(submission), nowMs);
+}
+
+async function persistCurrentDrawings() {
+  const submissions = drawings.map((d) => ({
+    id: d.id,
+    createdAt: d.createdAt,
+    strokes: d.strokes,
+  }));
+
+  await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
+  await fs.writeFile(DATA_PATH, JSON.stringify(submissions, null, 2), "utf8");
+}
+
+async function cleanupExpiredDrawings(nowMs = Date.now()) {
+  const next = drawings.filter(
+    (d) => !isExpiredByMs(getSubmissionCreatedAtMs(d), nowMs),
+  );
+  if (next.length === drawings.length) return;
+
+  drawings = next;
+  await persistCurrentDrawings();
+  broadcast("state", {
+    world: { width: WORLD_WIDTH, height: WORLD_HEIGHT },
+    drawings,
+  });
+}
+
 async function initializeFromDisk() {
   try {
-    const dataPath = path.join(process.cwd(), "data", "strokes.json");
-    const buf = await fs.readFile(dataPath, "utf8");
+    const buf = await fs.readFile(DATA_PATH, "utf8");
     const submissions = JSON.parse(buf || "[]");
     if (Array.isArray(submissions)) {
-      drawings = submissions.map(makeDrawingFromSubmission);
+      const nowMs = Date.now();
+      const valid = submissions.filter((s) => !isSubmissionExpired(s, nowMs));
+      drawings = valid.map(makeDrawingFromSubmission);
+
+      if (valid.length !== submissions.length) {
+        await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
+        await fs.writeFile(DATA_PATH, JSON.stringify(valid, null, 2), "utf8");
+      }
     } else {
       drawings = [];
     }
@@ -89,6 +145,12 @@ export async function ensureStarted() {
   timer = setInterval(() => {
     try {
       tickOnce();
+      const nowMs = Date.now();
+      if (nowMs - lastCleanupAt >= CLEANUP_INTERVAL_MS) {
+        lastCleanupAt = nowMs;
+        // Fire-and-forget cleanup while swallowing async errors for loop stability.
+        cleanupExpiredDrawings(nowMs).catch(() => {});
+      }
     } catch (e) {
       // If something goes wrong, stop the loop to avoid spamming
       clearInterval(timer);
@@ -103,6 +165,8 @@ export function getState() {
 }
 
 export function addSubmission(submission) {
+  if (isSubmissionExpired(submission)) return;
+
   const d = makeDrawingFromSubmission(submission);
   drawings.push(d);
   // Emit an immediate state update so clients reflect quickly
